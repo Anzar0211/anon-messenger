@@ -1,28 +1,54 @@
-import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
-import { NextResponse } from 'next/server';
+// Import `GoogleGenerative` from the package we installed earlier.
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextResponse } from "next/server";
 
-// Allow streaming responses up to 30 seconds
-export const maxDuration = 30;
+// Create an asynchronous function POST to handle POST 
+// request with parameters request and response.
+export async function POST(req:Request, res:Response) {
 
-export async function POST(req: Request) {
     try {
-        const prompt =
-            "Create a list of three open-ended and engaging questions formatted as a single string. Each question should be separated by '||'. These questions are for an anonymous social messaging platform, like Qooh.me, and should be suitable for a diverse audience. Avoid personal or sensitive topics, focusing instead on universal themes that encourage friendly interaction. For example, your output should be structured like this: 'What's a hobby you've recently started?||If you could have dinner with any historical figure, who would it be?||What's a simple thing that makes you happy?'. Ensure the questions are intriguing, foster curiosity, and contribute to a positive and welcoming conversational environment.";
+        // Access your API key by creating an instance of GoogleGenerativeAI we'll call it GenAI
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY || "")
 
-        const result = await streamText({
-            model: openai('gpt-3.5-turbo-instruct'),
-            maxTokens: 400,
-            prompt
-        });
+        // Ininitalise a generative model
+        const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash",
+            generationConfig: {
+
+                temperature: 0.8,
+
+                topK: 40,
+                topP: 0.9,
+            }
+        })
+
+        const data = await req.json()
+
+        // Define a prompt varibale
+        const prompt = data.body
+        const randomVariations = [
+            "Explore topics that reveal creativity and imagination.",
+            "Focus on questions that invite playful and unexpected responses.",
+            "Craft questions that encourage storytelling and personal reflection.",
+            "Generate inquiries that spark curiosity and friendly interaction.",
+            "Create prompts that reveal unique perspectives and experiences."
+        ];
+        const randomVariation = randomVariations[Math.floor(Math.random() * randomVariations.length)];
+
+        const fullPrompt = `${prompt} ${randomVariation} `
+
+        // Pass the prompt to the model and retrieve the output
+        const result = await model.generateContent(fullPrompt)
+        const response = await result.response;
+        const output = await response.text();
         
-        return result.toDataStreamResponse();
-
+        // Send the llm output as a server reponse object
+        return NextResponse.json({ output: output })
     } catch (error) {
-        console.error('Questions Generation Error:', error);
-        return NextResponse.json(
-            { error: 'Failed to generate questions' }, 
-            { status: 500 }
-        );
-    }   
+
+        return NextResponse.json({ 
+            error: 'Failed to generate messages', 
+            details: error instanceof Error ? error.message : 'Unknown error' 
+        }, { status: 500 })
+    }
 }

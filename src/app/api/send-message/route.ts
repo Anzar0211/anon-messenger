@@ -7,7 +7,7 @@ export async function POST(request:Request) {
     await dbConnect();
     const{username,content}=await request.json();
     try {
-        const user=await UserModel.findOne(username);
+        const user = await UserModel.findOne({ username }).exec();
         if(!user){
             return Response.json({
                 success:'false',
@@ -29,7 +29,7 @@ export async function POST(request:Request) {
         await user.save();
         return Response.json({
             success:'true',
-            message:'Message sent'
+            message:'Message sent successfully'
         },{status:200})
     } catch (error) {
         console.error('Error sending message',error);
